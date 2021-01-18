@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Map, MouseTool, Marker, Polyline } from 'react-amap'
+import { Map, MouseTool, Marker, Polyline, Circle } from 'react-amap'
 import { connect } from 'dva'
 import {
   Button,
@@ -54,12 +54,9 @@ const namespace = 'planning'
 
 const mapStateToProps = ({ [namespace]: n }) => {
   return {
-    tInfo: n.todo_list,
-    pInfo: n.position,
-    fmInfo: n.flight_mission,
-    ftInfo: n.flight_todolist,
-    // fInfo: n.flight_info,
-    // mInfo: n.mission_info,
+    bInfo: n.boarder,
+    uInfo: n.uav,
+    iInfo: n.info,
   }
 }
 
@@ -75,9 +72,9 @@ const mapDispatchToProps = (dispatch) => {
       }
       dispatch(action)
     },
-    plan: () => {
+    query_from_host: () => {
       const action = {
-        type: `${namespace}/plan`,
+        type: `${namespace}/query_from_host`,
         payload: {
           type: 1,
         },
@@ -101,20 +98,7 @@ export default class Amap extends Component {
     this.state = {
       what: '点击下方按钮开始绘制',
       load_point,
-      color: [
-        'aqua',
-        'blue',
-        'black',
-        'blueviolet',
-        'brown',
-        'burlywood',
-        'chartreuse',
-        'cadetblue',
-        'coral',
-        'crimson',
-        'darkolivegreen',
-        'grey',
-      ],
+      color: ['yellow', 'blue', 'red', 'green'],
       button_disabled: true,
       selectedRowKeys: [],
     }
@@ -140,38 +124,39 @@ export default class Amap extends Component {
       },
     }
     this.mapPlugins = ['ToolBar']
-    this.mapCenter = { longitude: 118.957746, latitude: 32.115395 }
+    this.mapCenter = { longitude: 118.958877, latitude: 32.114745 }
   }
 
-  display() {
+  display_boarder() {
+    console.log(this.props.bInfo)
     let temp = []
-    for (let a of this.props.pInfo.keys()) {
+    for (let a of this.props.bInfo) {
       temp = temp.concat({
-        key: 'uav' + JSON.stringify(a),
-        position: {
-          longitude: this.props.pInfo[a][0] / 1000000,
-          latitude: this.props.pInfo[a][1] / 1000000,
-        },
+        longitude: a[0],
+        latitude: a[1],
       })
     }
     let temp_path = []
-    let count_out = 0
-    for (let a of this.props.tInfo) {
-      let temptemp = []
-      temptemp = temptemp.concat({
-        longitude: this.props.pInfo[count_out][0] / 1000000,
-        latitude: this.props.pInfo[count_out][1] / 1000000,
+    temp_path = temp_path.concat({ route: temp })
+    return [temp_path]
+  }
+
+  display_uav() {
+    let temp = []
+    let count = 0
+    for (let a of this.props.uInfo) {
+      temp = temp.concat({
+        key: 'uav' + JSON.stringify(count),
+        position: {
+          longitude: a['longitude'],
+          latitude: a['latitude'],
+        },
+        r: a['radius'],
+        color: a['key'],
       })
-      for (let b of a) {
-        temptemp = temptemp.concat({
-          longitude: this.state.load_point[b['point']].position.longitude,
-          latitude: this.state.load_point[b['point']].position.latitude,
-        })
-      }
-      temp_path = temp_path.concat({ route: temptemp, key: count_out })
-      count_out += 1
+      count = count + 1
     }
-    return [temp, temp_path]
+    return [temp]
   }
 
   onSelectChange = (selectedRowKeys) => {
@@ -180,7 +165,10 @@ export default class Amap extends Component {
   }
 
   render() {
-    const [load_uav, path] = this.display()
+    const [boarder] = this.display_boarder()
+    console.log(boarder)
+    const [uav] = this.display_uav()
+    console.log(uav)
 
     const onSave = (values) => {
       console.log('Received values of form: ', values)
@@ -230,7 +218,7 @@ export default class Amap extends Component {
           >
             <div>
               <IconFont0 style={{ padding: '20px' }} type="icon-wurenji-copy" />
-              {`智能规划平台`}
+              {`无人机中继平台`}
             </div>
           </div>
         </div>
@@ -251,7 +239,7 @@ export default class Amap extends Component {
                   events={this.markerEvents}
                 />
               ))}
-              {load_uav.map((item) => (
+              {uav.map((item) => (
                 <Marker
                   position={item.position}
                   // icon={'//vdata.amap.com/icons/b18/1/2.png'}
@@ -261,13 +249,26 @@ export default class Amap extends Component {
                   <IconFont1 type="icon-wurenji" />
                 </Marker>
               ))}
-              {path.map((item) => (
+              {uav.map((item) => (
+                <Circle
+                  center={item.position}
+                  radius={item.r}
+                  style={{
+                    fillColor: this.state.color[item.color],
+                    fillOpacity: 0.5,
+                    strokeColor: 'black',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 1,
+                  }}
+                />
+              ))}
+              {boarder.map((item) => (
                 <Polyline
                   path={item.route}
-                  showDir={true}
+                  showDir={false}
                   style={{
-                    strokeWeight: 4,
-                    strokeColor: this.state.color[item.key],
+                    strokeWeight: 3,
+                    strokeColor: 'purple',
                   }}
                 />
               ))}
@@ -288,7 +289,9 @@ export default class Amap extends Component {
                 rules={[{ required: true, message: '缺少优化目标' }]}
               >
                 <Select placeholder="选择优化目标">
-                  <Option value="最小化总等待时间">最小化总等待时间</Option>
+                  <Option value="无人机100%时间持续覆盖">
+                    无人机100%时间持续覆盖
+                  </Option>
                 </Select>
               </Form.Item>
               <Form.Item
@@ -300,12 +303,13 @@ export default class Amap extends Component {
               </Form.Item>
               <Form.Item name="slider" label="无人机数目">
                 <Slider
-                  min={4}
-                  max={12}
+                  min={1}
+                  max={4}
                   marks={{
+                    1: '1',
+                    2: '2',
+                    3: '3',
                     4: '4',
-                    8: '8',
-                    12: '12',
                   }}
                 />
               </Form.Item>
@@ -346,8 +350,11 @@ export default class Amap extends Component {
                 block
               >
                 <a
-                  onClick={() => {
-                    this.props.plan()
+                  onClick={(_) => {
+                    clearInterval(this.timer)
+                    this.timer = setInterval(() => {
+                      this.props.query_from_host()
+                    }, 100)
                   }}
                 >
                   Plan
@@ -357,20 +364,12 @@ export default class Amap extends Component {
             <div className="my_interact">
               <div style={{ position: 'relative', left: '10%', width: '80%' }}>
                 <Tabs defaultActiveKey="0" style={{ textAlign: 'center' }}>
-                  <TabPane tab="无人集群个体动作信息" key="0">
-                    <Table
-                      dataSource={this.props.ftInfo}
-                      rowSelection={rowSelection}
-                    >
-                      <Column title="编号" dataIndex="id" fixed="left" />
-                      <Column title="动作序列" dataIndex="list" />
-                    </Table>
-                  </TabPane>
-                  <TabPane tab="无人集群个体任务信息" key="1">
-                    <Table dataSource={this.props.fmInfo}>
+                  <TabPane tab="无人集群个体状态信息" key="0">
+                    <Table dataSource={this.props.iInfo}>
                       <Column title="编号" dataIndex="id" />
-                      <Column title="执行任务" dataIndex="mission" />
-                      <Column title="代价" dataIndex="cost" />
+                      <Column title="位置" dataIndex="position" />
+                      <Column title="巡航速度" dataIndex="velocity" />
+                      <Column title="中继半径" dataIndex="radius" />
                     </Table>
                   </TabPane>
                 </Tabs>
