@@ -255,7 +255,7 @@ export default class Amap extends Component {
                   radius={item.r}
                   style={{
                     fillColor: this.state.color[item.color],
-                    fillOpacity: 0.5,
+                    fillOpacity: 0.1,
                     strokeColor: 'black',
                     strokeOpacity: 1.0,
                     strokeWeight: 1,
@@ -304,12 +304,14 @@ export default class Amap extends Component {
               <Form.Item name="slider" label="无人机数目">
                 <Slider
                   min={1}
-                  max={4}
+                  max={16}
                   marks={{
                     1: '1',
-                    2: '2',
-                    3: '3',
                     4: '4',
+                    7: '7',
+                    10: '10',
+                    13: '13',
+                    16: '16',
                   }}
                 />
               </Form.Item>
@@ -354,7 +356,7 @@ export default class Amap extends Component {
                     clearInterval(this.timer)
                     this.timer = setInterval(() => {
                       this.props.query_from_host()
-                    }, 100)
+                    }, 200)
                   }}
                 >
                   Plan
